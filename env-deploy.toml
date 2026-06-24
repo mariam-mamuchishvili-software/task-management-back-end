@@ -1,0 +1,6 @@
+DB_CONNECTION="mysql"
+DB_DATABASE="lerd"
+DB_HOST="lerd-mysql"
+DB_PASSWORD="lerd"
+DB_PORT=3306
+DB_USERNAME="root"
