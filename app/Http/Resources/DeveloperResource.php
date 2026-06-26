@@ -7,15 +7,23 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class DeveloperResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id'     => $this->id,
+            'name'   => $this->name,
+            'status' => $this->status,
+            'tasks'  => $this->when(
+                $this->relationLoaded('tasks'),
+                fn() => $this->tasks->map(fn($t) => [
+                    'id'          => $t->id,
+                    'title'       => $t->title,
+                    'description' => $t->description,
+                    'priority'    => $t->priority,
+                    'status'      => $t->status,
+                    'tags'        => $t->tags,
+                ])->values(),
+            ),
+        ];
     }
 }
-
-
