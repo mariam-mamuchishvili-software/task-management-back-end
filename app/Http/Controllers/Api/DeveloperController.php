@@ -6,49 +6,60 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreDeveloperRequest;
 use App\Http\Requests\UpdateDeveloperRequest;
 use App\Http\Resources\DeveloperResource;
-use App\Models\Developer;
+use App\Services\DeveloperService;
 use Illuminate\Http\Request;
 
 class DeveloperController extends Controller
 {
+    public function __construct(private DeveloperService $service) {}
+
     public function index(Request $request)
     {
         $includes = $this->parseIncludes($request, ['tasks']);
 
-        $developers = Developer::with($includes)->get();
-
-        return DeveloperResource::collection($developers);
+        return DeveloperResource::collection($this->service->list($includes));
     }
 
     public function store(StoreDeveloperRequest $request)
     {
-        $developer = Developer::create($request->validated());
+        return new DeveloperResource($this->service->create($request->validated()));
+    }
+
+    public function show(Request $request, int $id)
+    {
+        $includes = $this->parseIncludes($request, ['tasks']);
+        $developer = $this->service->find($id, $includes);
+
+        if (! $developer) {
+            return $this->notFound('Developer not found.');
+        }
 
         return new DeveloperResource($developer);
     }
 
-    public function show(Developer $developer)
+    public function update(UpdateDeveloperRequest $request, int $id)
     {
-        return new DeveloperResource($developer);
+        $developer = $this->service->find($id, []);
+
+        if (! $developer) {
+            return $this->notFound('Developer not found.');
+        }
+
+        return new DeveloperResource($this->service->update($developer, $request->validated()));
     }
 
-    public function update(UpdateDeveloperRequest $request, Developer $developer)
+    public function destroy(int $id)
     {
-        $developer->update($request->validated());
+        $developer = $this->service->find($id, []);
 
-        return new DeveloperResource($developer);
-    }
+        if (! $developer) {
+            return $this->notFound('Developer not found.');
+        }
 
-    public function destroy(Developer $developer)
-    {
-        $developer->delete();
+        $this->service->delete($developer);
 
-        return response()->noContent();
-    }
-
-    private function parseIncludes(Request $request, array $allowed): array
-    {
-        $requested = array_filter(explode(',', $request->query('include', '')));
-        return array_values(array_intersect($requested, $allowed));
+        return response()->json([
+            'meta' => ['message' => 'Developer deleted successfully.'],
+        ]);
     }
 }

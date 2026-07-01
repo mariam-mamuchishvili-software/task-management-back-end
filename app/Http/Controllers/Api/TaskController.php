@@ -6,49 +6,60 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Http\Resources\TaskResource;
-use App\Models\Task;
+use App\Services\TaskService;
 use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
+    public function __construct(private TaskService $service) {}
+
     public function index(Request $request)
     {
         $includes = $this->parseIncludes($request, ['developer']);
 
-        $tasks = Task::with($includes)->get();
-
-        return TaskResource::collection($tasks);
+        return TaskResource::collection($this->service->list($includes));
     }
 
     public function store(StoreTaskRequest $request)
     {
-        $task = Task::create($request->validated());
+        return new TaskResource($this->service->create($request->validated()));
+    }
+
+    public function show(Request $request, int $id)
+    {
+        $includes = $this->parseIncludes($request, ['developer']);
+        $task = $this->service->find($id, $includes);
+
+        if (! $task) {
+            return $this->notFound('Task not found.');
+        }
 
         return new TaskResource($task);
     }
 
-    public function show(Task $task)
+    public function update(UpdateTaskRequest $request, int $id)
     {
-        return new TaskResource($task);
+        $task = $this->service->find($id, []);
+
+        if (! $task) {
+            return $this->notFound('Task not found.');
+        }
+
+        return new TaskResource($this->service->update($task, $request->validated()));
     }
 
-    public function update(UpdateTaskRequest $request, Task $task)
+    public function destroy(int $id)
     {
-        $task->update($request->validated());
+        $task = $this->service->find($id, []);
 
-        return new TaskResource($task);
-    }
+        if (! $task) {
+            return $this->notFound('Task not found.');
+        }
 
-    public function destroy(Task $task)
-    {
-        $task->delete();
+        $this->service->delete($task);
 
-        return response()->noContent();
-    }
-
-    private function parseIncludes(Request $request, array $allowed): array
-    {
-        $requested = array_filter(explode(',', $request->query('include', '')));
-        return array_values(array_intersect($requested, $allowed));
+        return response()->json([
+            'meta' => ['message' => 'Task deleted successfully.'],
+        ]);
     }
 }
